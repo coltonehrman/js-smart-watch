@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Watch</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #watch-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 100vh;
+        }
+
+        #screen-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto;
+            transform: translateX(-2%);
+        }
+
+        #smart-dash {
+            position: absolute;
+            background-color: white;
+            cursor: pointer;
+            bottom: 0;
+            height: 80%;
+            width: 100%;
+            z-index: 100;
+            text-align: center;
+            transform: translateY(50%);
+            transition: transform 1s;
+        }
+
+        #smart-dash.open {
+            transform: translateY(0%);
+        }
+
+        #smart-dash .time {
+            font-size: 2em;
+            font-family: Arial, Helvetica, sans-serif;
+            margin-top: 30px;
+        }
+
+        #smart-dash .day, #smart-dash .date {
+            font-size: 0.75rem;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: 100;
+            margin: 0;
+        }
+
+        #smart-dash .day {
+            margin-top: 10%;
+        }
+
+        @media screen and (min-height: 500px) {
+            #smart-dash .time {
+                font-size: 3em;
+            }
+
+            #smart-dash .day, #smart-dash .date {
+                font-size: 1rem;
+            }
+        }
+
+        @media screen and (min-height: 600px) {
+            #smart-dash .time {
+                font-size: 4em;
+            }
+
+            #smart-dash .day, #smart-dash .date {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media screen and (min-height: 700px) {
+            #smart-dash .time {
+                font-size: 5em;
+            }
+
+            #smart-dash .day, #smart-dash .date {
+                font-size: 1.5rem;
+            }
+        }
+
+        .map-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            transform: translateX(-25%) translateY(-30%);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="watch-container">
+            <img id="watch-img" src="https://c0d3.com/challenges/assets/watch.jpg" alt="Smart watch">
+            <div id="screen-container">
+                <div id="smart-dash">
+                    <div class="time"></div>
+                    <h2 class="day"></h2>
+                    <h2 class="date"></h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const $ = document.querySelector.bind(document);
+
+            function Watch(selector) {
+                this.el = $(selector);
+                this.topRatio = 0.255;
+                this.bottomRatio = 0.27;
+            }
+
+            Watch.prototype.getHeight = function() {
+                const bounds = this.el.getBoundingClientRect();
+                return bounds.height;
+            };
+
+            Watch.prototype.topInPixels = function() {
+                return this.getHeight() * this.topRatio;
+            };
+
+            Watch.prototype.bottomInPixels = function() {
+                return this.getHeight() * this.bottomRatio;
+            };
+
+            function Screen(selector) {
+                this.el = $(selector);
+            }
+
+            Screen.prototype.positionTo = function({ fromTop, fromBottom }) {
+                this.el.style.top = `${fromTop}px`;
+                this.el.style.bottom = `${fromBottom}px`;
+            };
+
+            Screen.prototype.square = function() {
+                const bounds = this.el.getBoundingClientRect();
+                this.el.style.width = `${bounds.height}px`;
+            };
+            
+            Screen.prototype.resize = function({ fromTop, fromBottom }) {
+                this.positionTo({ fromTop, fromBottom });
+                this.square();
+            };
+
+            function SmartDash(selector, { time, day, date }) {
+                this.elSelector = selector;
+                this.timeSelector = time;
+                this.daySelector = day;
+                this.dateSelector = date;
+                this.open = false;
+            }
+
+            SmartDash.prototype.el = function() {
+                return $(this.elSelector);
+            };
+
+            SmartDash.prototype.time = function() {
+                return $(this.timeSelector);
+            };
+
+            SmartDash.prototype.day = function() {
+                return $(this.daySelector);
+            };
+
+            SmartDash.prototype.date = function() {
+                return $(this.dateSelector);
+            };
+
+            SmartDash.prototype.init = function() {
+                this.timer();
+                this.setTime(new Date(), ':');
+                this.setDate(new Date());
+                this.setupEventHandlers();
+            };
+
+            SmartDash.prototype.timer = function() {
+                this.timerInterval = setInterval(() => {
+                    const $time = this.time();
+
+                    if ($time.textContent.match(/\:/g))
+                        this.setTime(new Date(), ':');
+                    else
+                        this.setTime(new Date(), ' ');
+                }, 1000 * 60);
+            };
+
+            SmartDash.prototype.flashTime = function() {
+                this.flashInterval = setInterval(() => {
+                    const $time = this.time();
+                    if ($time.textContent.match(/\:/g))
+                        this.setTime(new Date(), ' ');
+                    else
+                        this.setTime(new Date(), ':');
+                }, 1000);
+            };
+
+            SmartDash.prototype.stopFlash = function() {
+                clearInterval(this.flashInterval);
+                this.setTime(new Date(), ':');
+            };
+
+            SmartDash.prototype.setTime = function(date, seperator) {
+                let hours = date.getHours();
+                let minutes = date.getMinutes();
+                const $time = this.time();
+
+                if (hours < 10) hours = `0${hours}`;
+                if (minutes < 10) minutes = `0${minutes}`;
+
+                $time.textContent = `${hours}${seperator}${minutes}`;
+            };
+
+            SmartDash.prototype.setDate = function(date) {
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const weekDay = date.getDay();
+                const day = date.getDate();
+                const month = date.getMonth();
+                const year = date.getFullYear();
+                
+                const $day = this.day();
+                const $date = this.date();
+
+                $day.textContent = days[weekDay];
+                $date.textContent = `${months[month]} ${day}, ${year}`;
+            };
+
+            SmartDash.prototype.setupEventHandlers = function() {
+                $('#watch-container').addEventListener('click', (event) => {
+                    const $el = this.el();
+                    const $time = this.time();
+
+                    if (event.target == $el || event.target == $time) {
+                        if (!this.open) {
+                            this.open = true;
+                            $el.className += 'open';
+                            this.flashTime();
+                        } else {
+                            this.open = false;
+                            $el.className = $el.className.replace(/open/g, '');
+                            this.stopFlash();
+                        }
+                    }
+                });
+            };
+
+            window.onload = () => {
+                const watch = new Watch('#watch-img');
+                const screen = new Screen('#screen-container');
+                const dash = new SmartDash('#smart-dash', { time: '.time', day: '.day', date: '.date' });
+
+                dash.init();
+                screen.resize({ fromTop: watch.topInPixels(), fromBottom: watch.bottomInPixels() });
+                loadMap({ parent: screen.el });
+
+                window.onresize = function() {
+                    screen.resize({ fromTop: watch.topInPixels(), fromBottom: watch.bottomInPixels() });
+                };
+
+                function loadMap({ parent }) {
+                    const mapHTML = `
+                    <iframe class="map-frame" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d5283.184982334248!2d-122.0607780294428!3d37.54915451728948!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808fbe68119cbd01%3A0xa8b8e707b7dcfc6e!2s42%20Silicon%20Valley!5e0!3m2!1sen!2sus!4v1586011709061!5m2!1sen!2sus"
+                    style="border: 0" frameborder="0" allowfullscreen="" aria-hidden="false" tabindex="0"></iframe>`;
+                    
+                    parent.innerHTML += mapHTML;
+                }
+            };
+        })();
+    </script>
+</body>
+</html>
